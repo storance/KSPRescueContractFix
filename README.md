@@ -63,11 +63,11 @@ RESCUE_CONTRACT_FIX_CONFIG
 	}
 }
 ```
-* **minPeriapsis** - Configures the absolute minimum periapsis for orbits.  If the atmosphere height of the parent body is larger, that will be used instead.  Any value <= 0 will disable the absolute min periapsis but will still use the atmosphere height as the minimum.
-* **periapsisMinJitter**, **periapsisMaxJitter** - If the orbit needs to be corrected, add a random amount to the periapasis between these two values.  This prevents the rescue orbit from having a round periapsis.
+* **minPeriapsis** - Configures the absolute minimum periapsis in meters for orbits.  If the atmosphere height of the parent body is larger, that will be used instead.  Any value <= 0 will disable the absolute min periapsis but will still use the atmosphere height as the minimum.
+* **periapsisMinJitter**, **periapsisMaxJitter** - If the orbit needs to be corrected, add a random amount of meters to the periapasis between these two values.  This prevents the rescue orbit from having a round periapsis.
 * **maxMassPercentDiff** - When replacing a part for the recover kerbal and part contracts, attempt to find a part whose mass is within the configured percent difference of the original part's mass.  Should be a value between 0 and 1.
 * **ALLOWED_PARTS** - List of allowed crewed parts for rescue contracts involving kerbals.
-* **BODY** - Allows overriding **minPeriapsis**, **periapsisMinJitter**, and **periapsisMaxJitter** on a per celestial body
+* **BODY** - Allows overriding **minPeriapsis**, **periapsisMinJitter**, and **periapsisMaxJitter** on a per celestial body basis.
 	* **name** - The name of the celestial body
 	* **minPeriapsis** - Overrides minPeriapsis for this celestial body.  Any negative value will use the global setting for this instead.
 	* **periapsisMinJitter** - Overrides periapsisMinJitter for this celestial body.  Any negative value will use the global setting for this instead.
