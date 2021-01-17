@@ -17,6 +17,7 @@ KSPRescueContractFix will restrict parts Kerbals can spawn in based a user-defin
 * Nearfuture Spacecraft
 * reDIRECT
 * SOCK
+* Station Parts Expansion Redux
 * Tantares
 * Tundra Exploration
 

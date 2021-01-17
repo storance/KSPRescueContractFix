@@ -35,7 +35,6 @@ namespace KSPRescueContractFix
             }
         }
 
-
         public void OnContractOffered(Contract contract)
         {
             if (!IsRecoverAssetContract(contract))
@@ -46,14 +45,7 @@ namespace KSPRescueContractFix
             ConfigNode contractData = new ConfigNode("CONTRACT");
             contract.Save(contractData);
 
-            int partId = ParseIntConfigValue(contractData, "partID");
-            // if part is not zero, then it's already been spawned
-            if (partId != 0)
-            {
-                return;
-            }
-
-            int recoveryType = ParseIntConfigValue(contractData, "recoveryType");
+            uint recoveryType = ParseIntConfigValue(contractData, "recoveryType");
             // 0 = Not present/invalid
             // 1 = Recover Kerbal
             // 2 = Recover Part
@@ -63,10 +55,19 @@ namespace KSPRescueContractFix
                 return;
             }
 
-            string partName = contractData.GetValue("partName");
-            if (!string.IsNullOrEmpty(partName) && !isValidCrewedPart(partName))
+            uint partId = ParseIntConfigValue(contractData, "partID");
+            // if part is not zero, then it's already been spawned
+            if (partId != 0)
             {
-                string newPartName = getRandomAllowedCrewedPart();
+                return;
+            }
+
+            string partName = contractData.GetValue("partName");
+            if (!string.IsNullOrEmpty(partName) && !config.IsValidCrewedPart(partName))
+            {
+                string newPartName = recoveryType == 1 
+                    ? config.getRandomAllowedCrewedPart(rnd) 
+                    : config.getRandomAllowedCrewedPartWithSameMass(rnd, partName);
                 Log($"{contract.Title}: Replacing crewed part {partName} with allowed crewed part {newPartName}.");
                 contractData.SetValue("partName", newPartName, true);
                 // Contract.Load() appears to append contract parameters instead of replace.
@@ -75,37 +76,6 @@ namespace KSPRescueContractFix
                 contractData.RemoveNodes("PARAM");
                 Contract.Load(contract, contractData);
             }
-        }
-
-        private int ParseIntConfigValue(ConfigNode node, String name, int defaultValue = 0)
-        {
-            if (!node.HasValue(name))
-            {
-                return defaultValue;
-            }
-
-            int parsedInt = defaultValue;
-            if (!int.TryParse(node.GetValue(name), out parsedInt))
-            {
-                return defaultValue;
-            }
-
-            return parsedInt;
-        }
-
-        private Boolean isValidCrewedPart(string partName)
-        {
-            return config.allowedCrewedParts.Contains(partName);
-        }
-
-        private string getRandomAllowedCrewedPart()
-        {
-            if (config.allowedCrewedPartsArray.Length <= 0) {
-                return "landerCabinSmall";
-            }
-
-            int index = rnd.Next(config.allowedCrewedPartsArray.Length);
-            return config.allowedCrewedPartsArray[index];
         }
 
         public void OnContractAccepted(Contract contract)
@@ -118,19 +88,16 @@ namespace KSPRescueContractFix
             ConfigNode contractData = new ConfigNode("CONTRACT");
             contract.Save(contractData);
 
-            string kerbalName = contractData.GetValue("kerbalName");
-            if (string.IsNullOrEmpty(kerbalName) || !HighLogic.CurrentGame.CrewRoster.Exists(kerbalName))
+            uint partId = ParseIntConfigValue(contractData, "partID");
+            // if part is not zero, then it's already been spawned
+            if (partId == 0)
             {
                 return;
             }
 
-            Vessel vessel = GetVessel(HighLogic.CurrentGame.CrewRoster[kerbalName]);
-            if (vessel == null)
-            {
-                return;
-            }
-
-            if (vessel.situation != Vessel.Situations.ORBITING && vessel.situation != Vessel.Situations.SUB_ORBITAL)
+            Vessel vessel = GetVessel(partId);
+            if (vessel == null || (vessel.situation != Vessel.Situations.ORBITING 
+                && vessel.situation != Vessel.Situations.SUB_ORBITAL))
             {
                 return;
             }
@@ -142,84 +109,58 @@ namespace KSPRescueContractFix
             var rpe = sma * (1 - e);
             var pe = rpe - body.Radius;
 
-            double minPeriapsis = GetMinPeriapsis(body);
+            double minPeriapsis = config.GetMinPeriapsis(body);
             if (minPeriapsis > 0 && pe < minPeriapsis)
             {
                 double newPe = minPeriapsis + getRandomJitter(body);
                 double newRpe = newPe + body.Radius;
                 double newSma = newRpe / (1 - e);
+                double newRap = newSma * (1 + e);
+                double newAp = newRap - body.Radius;
 
                 Log($"{contract.Title}: Periapsis ({pe}) of {vessel.name} is below the configured minimum ({minPeriapsis}).  " +
-                    $"Adjusting periapasis {newPe} and semi-major axis to {newSma}.");
+                    $"Adjusting periapasis to {newPe} and apoapsis to {newAp}.");
                 vessel.orbit.semiMajorAxis = newSma;
             }
         }
 
-        public static Vessel GetVessel(ProtoCrewMember crew)
+        public static Vessel GetVessel(uint partId)
         {
-            foreach (Vessel vessel in FlightGlobals.Vessels)
+            ProtoPartSnapshot protoPart = FlightGlobals.FindProtoPartByID(partId);
+            if (protoPart == null)
             {
-                // workaround for MKS shenanigans with deleting then recreating the kerbal
-                // Since MKS deletes the kerbals after the vessel has spawned, the ProtoCrewMember in 
-                // vessel.GetVesselCrew() has the same name but is a different instance from
-                // the one in the CrewRoster
-                foreach (ProtoCrewMember vesselCrew in vessel.GetVesselCrew())
-                {
-                    if (vesselCrew.name.Equals(crew.name))
-                    {
-                        return vessel;
-                    }
-                }
+                LogError($"Failed to find part {partId} in any of the {FlightGlobals.Vessels.Count} vessels!");
+                return null;
             }
 
-            LogError($"Failed to find {crew.name} in any of the {FlightGlobals.Vessels.Count} vessels!");
-            return null;
-        }
-
-        private double GetMinPeriapsis(CelestialBody body)
-        {
-            if (config.bodyOverrides.ContainsKey(body.name))
-            {
-                BodyOverride bodyOverride = config.bodyOverrides[body.name];
-
-                if (bodyOverride.minPeriapsis != null && bodyOverride.minPeriapsis > 0)
-                {
-                    return bodyOverride.minPeriapsis.GetValueOrDefault() + config.periapsisMinJitter;
-                }
-            }
-
-            if (body.atmosphere)
-            {
-                return Math.Max(body.atmosphereDepth, config.minPeriapsis);
-            }
-
-            return config.minPeriapsis;
+            return protoPart.pVesselRef.vesselRef;
         }
 
         private int getRandomJitter(CelestialBody body)
         {
-            if (config.bodyOverrides.ContainsKey(body.name))
+            int maxJitter = config.GetJitter(body);
+            if (maxJitter == 0)
             {
-                BodyOverride bodyOverride = config.bodyOverrides[body.name];
-                if (bodyOverride.periapsisMaxJitter != null)
-                {
-                    if (bodyOverride.minPeriapsis <= 0)
-                    {
-                        return 0;
-                    }
-                    else
-                    {
-                        return rnd.Next(bodyOverride.periapsisMaxJitter.GetValueOrDefault()+1);
-                    }
-                }
+                return 0;
             }
 
-            if (config.periapsisMinJitter == config.periapsisMaxJitter)
+            return rnd.Next(maxJitter);
+        }
+
+        private static uint ParseIntConfigValue(ConfigNode node, String name, uint defaultValue = 0)
+        {
+            if (!node.HasValue(name))
             {
-                return config.periapsisMaxJitter;
+                return defaultValue;
             }
 
-            return rnd.Next(config.periapsisMinJitter, config.periapsisMaxJitter+1);
+            uint parsedInt = defaultValue;
+            if (!uint.TryParse(node.GetValue(name), out parsedInt))
+            {
+                return defaultValue;
+            }
+
+            return parsedInt;
         }
 
         private static bool IsRecoverAssetContract(Contract contract)
