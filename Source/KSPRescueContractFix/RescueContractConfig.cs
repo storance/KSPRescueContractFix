@@ -16,15 +16,14 @@ namespace KSPRescueContractFix
         [Persistent]
         public float maxMassPercentDiff = 0.1f;
 
-        public HashSet<string> allowedCrewedPartsSet;
-        public List<string> allowedCrewedPartsList;
+        public HashSet<string> allowedCrewedParts;
         public Dictionary<string, BodyOverride> bodyOverrides;
 
         public void Load(ConfigNode node)
         {
             ConfigNode.LoadObjectFromConfig(this, node);
 
-            allowedCrewedPartsSet = new HashSet<string>();
+            allowedCrewedParts = new HashSet<string>();
             foreach (ConfigNode partsNode in node.GetNodes("ALLOWED_PARTS"))
             {
                 foreach (string partName in partsNode.GetValues("part"))
@@ -33,10 +32,9 @@ namespace KSPRescueContractFix
                     {
                         continue;
                     }
-                    allowedCrewedPartsSet.Add(FixPartName(partName));
+                    allowedCrewedParts.Add(FixPartName(partName));
                 }
             }
-            allowedCrewedPartsList = new List<string>(allowedCrewedPartsSet);
 
             bodyOverrides = new Dictionary<string, BodyOverride>();
             foreach (ConfigNode bodyNode in node.GetNodes("BODY"))
@@ -49,26 +47,18 @@ namespace KSPRescueContractFix
 
         public bool IsValidCrewedPart(string partName)
         {
-            return allowedCrewedPartsSet.Contains(partName);
+            return allowedCrewedParts.Contains(partName) 
+                && AllowedPartsSettings.Instance.IsPartEnabled(partName);
         }
 
         public string getRandomAllowedCrewedPart(System.Random rnd)
         {
+            List<string> allowedCrewedPartsList = AllowedPartsSettings.Instance
+                .FilterAllowedParts(allowedCrewedParts);
             if (allowedCrewedPartsList.Count == 0)
             {
                 return "landerCabinSmall";
             }
-
-            allowedCrewedPartsList.FindAll(partName =>
-            {
-                var partInfo = PartLoader.getPartInfoByName(partName);
-                if (partInfo == null)
-                {
-                    return false;
-                }
-
-                return true;
-            });
 
             int index = rnd.Next(allowedCrewedPartsList.Count);
             return allowedCrewedPartsList[index];
@@ -76,6 +66,9 @@ namespace KSPRescueContractFix
 
         public string getRandomAllowedCrewedPartWithSameMass(System.Random rnd, string originalPartName)
         {
+            List<string> allowedCrewedPartsList = AllowedPartsSettings.Instance
+                .FilterAllowedParts(allowedCrewedParts);
+
             AvailablePart originalPart = PartLoader.getPartInfoByName(originalPartName);
             // we couldn't load the part so just return any random part
             if (originalPart == null)
@@ -85,18 +78,21 @@ namespace KSPRescueContractFix
 
             List<AvailablePart> filteredParts = allowedCrewedPartsList
                 .Select(name => PartLoader.getPartInfoByName(name))
-                .Where(part => part != null && CalcPercentDifference(originalPart.MinimumMass, part.MinimumMass) <= maxMassPercentDiff)
+                .Where(part => part != null && CalcPercentDifference(originalPart.partPrefab.mass, part.partPrefab.mass) <= maxMassPercentDiff)
                 .ToList();
 
             if (filteredParts.Count == 0)
             {
                 RescueContractFix.Log($"Could not find part similar in mass to {originalPartName}. " +
-                    $"Using any random allowed part instead.");
-                return getRandomAllowedCrewedPart(rnd);
+                    "Using any random allowed part instead.");
+                int index = rnd.Next(allowedCrewedPartsList.Count);
+                return allowedCrewedPartsList[index];
             }
-
-            int index = rnd.Next(filteredParts.Count);
-            return filteredParts[index].name;
+            else
+            {
+                int index = rnd.Next(filteredParts.Count);
+                return filteredParts[index].name;
+            }
         }
 
         public void Save(ConfigNode node)
@@ -104,7 +100,7 @@ namespace KSPRescueContractFix
             ConfigNode.CreateConfigFromObject(this, node);
 
             ConfigNode partsNode = new ConfigNode("ALLOWED_PARTS");
-            foreach (string part in allowedCrewedPartsSet)
+            foreach (string part in allowedCrewedParts)
             {
                 partsNode.AddValue("part", part);
             }
@@ -178,7 +174,7 @@ namespace KSPRescueContractFix
                 + ",minPeriapsis=" + minPeriapsis
                 + ",periapsisMinJitter=" + periapsisMinJitter
                 + ",periapsisMaxJitter=" + periapsisMaxJitter 
-                + ",allowedParts=" + string.Join(", ", allowedCrewedPartsSet)
+                + ",allowedParts=" + string.Join(", ", allowedCrewedParts)
                 + ",bodyOverrides=" + string.Join(", ", bodyOverrides.Values)
                 + "}";
         }

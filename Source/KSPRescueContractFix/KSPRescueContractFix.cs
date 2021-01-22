@@ -15,6 +15,7 @@ namespace KSPRescueContractFix
             DontDestroyOnLoad(this);
             GameEvents.Contract.onOffered.Add(OnContractOffered);
             GameEvents.Contract.onAccepted.Add(OnContractAccepted);
+            GameEvents.OnPartLoaderLoaded.Add(OnPartLoaderLoaded);
             
             rnd = new System.Random();
         }
@@ -23,6 +24,7 @@ namespace KSPRescueContractFix
         {
             GameEvents.Contract.onOffered.Remove(OnContractOffered);
             GameEvents.Contract.onAccepted.Remove(OnContractAccepted);
+            GameEvents.OnPartLoaderLoaded.Remove(OnPartLoaderLoaded);
         }
 
         public void ModuleManagerPostLoad()
@@ -33,6 +35,11 @@ namespace KSPRescueContractFix
             {
                 config.Load(configNodes[0]);
             }
+        }
+
+        public void OnPartLoaderLoaded()
+        {
+            SettingsBuilder.Create(config);
         }
 
         public void OnContractOffered(Contract contract)
@@ -50,7 +57,10 @@ namespace KSPRescueContractFix
             // 1 = Recover Kerbal
             // 2 = Recover Part
             // 3 = Recover Kerbal and Pod
-            if (recoveryType != 1 && recoveryType != 3)
+            RescueContractSettings settings = RescueContractSettings.Instance;
+
+            if (!((recoveryType == 1 && settings.rescueKerbalFixEnabled) 
+                || (recoveryType == 3 && settings.recoverKerbalPodFixEnabled)))
             {
                 return;
             }
@@ -80,7 +90,7 @@ namespace KSPRescueContractFix
 
         public void OnContractAccepted(Contract contract)
         {
-            if (!IsRecoverAssetContract(contract))
+            if (!IsRecoverAssetContract(contract) || !RescueContractSettings.Instance.orbitFixEnabled)
             {
                 return;
             }
