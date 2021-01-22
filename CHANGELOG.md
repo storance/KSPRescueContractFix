@@ -2,7 +2,7 @@
 
  - 2021-01-22
 
-### Initial Release
+### Changes since the last release
 
 * Fixed the Mk4 BFS-4200 Cargo Pod being whitelisted instead of the Mk4 BFS-4200 Command Pod from Tundra Exploration.
 * Added in-game difficulty settings to allow turning on/off the following:
