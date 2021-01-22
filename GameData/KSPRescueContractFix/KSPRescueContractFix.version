@@ -1,9 +1,9 @@
 {
   "NAME": "KSPRescueContractFix",
-  "URL": "https://raw.githubusercontent.com/storance/KSPRescueContractFix/master/GameData/KSPRescueContractFix/KSPRescueContractFix.version",
+  "URL": "https://raw.githubusercontent.com/storance/KSPRescueContractFix/main/GameData/KSPRescueContractFix/KSPRescueContractFix.version",
   "DOWNLOAD": "https://github.com/storance/KSPRescueContractFix/releases",
-  "CHANGE_LOG_URL": "https://github.com/KSPRescueContractFix/KSPRescueContractFix/blob/master/CHANGELOG.md",
-  "VERSION": {"MAJOR": 1, "MINOR": 0, "PATCH": 0, "BUILD": 0},
+  "CHANGE_LOG_URL": "https://github.com/KSPRescueContractFix/KSPRescueContractFix/blob/main/CHANGELOG.md",
+  "VERSION": {"MAJOR": 1, "MINOR": 1, "PATCH": 0, "BUILD": 0},
   "KSP_VERSION": {"MAJOR": 1, "MINOR": 11, "PATCH": 0},
   "KSP_VERSION_MIN": {"MAJOR": 1, "MINOR": 11, "PATCH": 0},
   "KSP_VERSION_MAX": {"MAJOR": 1, "MINOR": 11, "PATCH": 9}

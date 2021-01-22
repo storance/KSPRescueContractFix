@@ -56,6 +56,7 @@
     <Compile Include="KSPRescueContractFix.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RescueContractConfig.cs" />
+    <Compile Include="RescueContractSettings.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
